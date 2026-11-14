@@ -1,0 +1,8 @@
+# R / RStudio session files
+.Rhistory
+.RData
+.Rproj.user/
+
+# Power BI / Excel temporary and lock files
+~$*
+*.pbix.bak

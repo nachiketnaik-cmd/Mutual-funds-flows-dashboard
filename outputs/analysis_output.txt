@@ -1,0 +1,241 @@
+
+
+========== 1.1 Summary statistics of monthly net flows (Rs crore) ==========
+                   mean median     sd     min    max positive_months
+Equity            29723  29138   7936   15536  42702              36
+Debt               2850  -3209 130228 -294987 247490              17
+Hybrid            11715  12438   7741  -16538  23223              33
+Solution Oriented   280    259     76     177    518              36
+Index Funds        2804   2024   2459   -3614   8169              34
+Gold ETF           2816   1448   4471    -725  24040              32
+Other ETFs         7094   6853   5598   -4558  19802              34
+FoF Overseas        108     33    483    -419   1661              19
+
+
+========== 1.2 Total net flow over 36 months and share of total ==========
+                  total_net_flow_cr share_pct
+Equity                      1070013      51.8
+Debt                         102604       5.0
+Hybrid                       421727      20.4
+Solution Oriented             10066       0.5
+Index Funds                  100951       4.9
+Gold ETF                     101376       4.9
+Other ETFs                   255379      12.4
+FoF Overseas                   3873       0.2
+
+
+========== 1.3 Growth of AUM and SIP ==========
+Total AUM: Oct 2023 = 4644065  Sep 2026 = 8249221 Rs crore
+Total AUM growth over the period: 77.6 %
+Average monthly AUM growth (MoM): 1.72 %
+SIP: Oct 2023 = 16928  Sep 2026 = 32490 Rs crore
+Average SIP growth year-on-year: 25 %
+
+
+========== 1.4 Correlation matrix of net flows and Nifty returns ==========
+                  Equity  Debt Hybrid Solution Oriented Index Funds Gold ETF
+Equity              1.00 -0.05  -0.30              0.30        0.43    -0.02
+Debt               -0.05  1.00   0.70             -0.04        0.21     0.03
+Hybrid             -0.30  0.70   1.00             -0.14       -0.11     0.06
+Solution Oriented   0.30 -0.04  -0.14              1.00       -0.25     0.28
+Index Funds         0.43  0.21  -0.11             -0.25        1.00    -0.26
+Gold ETF           -0.02  0.03   0.06              0.28       -0.26     1.00
+Other ETFs          0.17 -0.03  -0.23              0.24        0.05     0.33
+FoF Overseas        0.09  0.10   0.03              0.13       -0.05     0.49
+SIP                 0.32 -0.09  -0.22              0.41       -0.23     0.44
+Nifty return       -0.35  0.23   0.41             -0.43       -0.13    -0.18
+                  Other ETFs FoF Overseas   SIP Nifty return
+Equity                  0.17         0.09  0.32        -0.35
+Debt                   -0.03         0.10 -0.09         0.23
+Hybrid                 -0.23         0.03 -0.22         0.41
+Solution Oriented       0.24         0.13  0.41        -0.43
+Index Funds             0.05        -0.05 -0.23        -0.13
+Gold ETF                0.33         0.49  0.44        -0.18
+Other ETFs              1.00         0.15  0.35        -0.20
+FoF Overseas            0.15         1.00  0.57        -0.15
+SIP                     0.35         0.57  1.00        -0.32
+Nifty return           -0.20        -0.15 -0.32         1.00
+
+
+========== 2.1 One-sample tests: is the mean net flow different from zero? ==========
+           category    mean      z       z_p      t      t_p significant_5pct
+1            Equity 29722.6 22.472 7.77e-112 22.472 2.21e-22             TRUE
+2              Debt  2850.1  0.131  8.96e-01  0.131 8.96e-01            FALSE
+3            Hybrid 11714.7  9.080  1.08e-19  9.080 9.94e-11             TRUE
+4 Solution Oriented   279.6 22.041 1.16e-107 22.041 4.17e-22             TRUE
+5       Index Funds  2804.2  6.844  7.72e-12  6.844 6.09e-08             TRUE
+6          Gold ETF  2816.0  3.779  1.57e-04  3.779 5.89e-04             TRUE
+7        Other ETFs  7093.9  7.603  2.89e-14  7.603 6.47e-09             TRUE
+8      FoF Overseas   107.6  1.335  1.82e-01  1.335 1.90e-01            FALSE
+
+
+========== 2.2 Two-sample tests ==========
+                              test mean_1 mean_2      z       z_p       t_p
+1 Equity vs Hybrid (mean net flow)  29723  11715  9.746 1.912e-22 1.157e-14
+2     Equity: 2nd half vs 1st half  29399  30046 -0.241 8.095e-01 8.111e-01
+
+
+========== 2.3 Test of proportions: is the share of positive months different from 50%? ==========
+           category positive_months share  p_value
+1            Equity              36  1.00 5.43e-09
+2              Debt              17  0.47 8.68e-01
+3            Hybrid              33  0.92 1.34e-06
+4 Solution Oriented              36  1.00 5.43e-09
+5       Index Funds              34  0.94 2.38e-07
+6          Gold ETF              32  0.89 6.80e-06
+7        Other ETFs              34  0.94 2.38e-07
+8      FoF Overseas              19  0.53 8.68e-01
+
+
+========== 3.1 Trend: is there a steady upward/downward trend in each category? ==========
+Equity             slope =     151.2 Rs cr per month, p = 0.241
+Debt               slope =   -1233.0 Rs cr per month, p = 0.563
+Hybrid             slope =    -144.6 Rs cr per month, p = 0.250
+Solution Oriented  slope =       3.1 Rs cr per month, p = 0.008
+Index Funds        slope =     -78.9 Rs cr per month, p = 0.044
+Gold ETF           slope =     168.1 Rs cr per month, p = 0.017
+Other ETFs         slope =     189.9 Rs cr per month, p = 0.032
+FoF Overseas       slope =      26.4 Rs cr per month, p = 0.000
+
+
+========== 3.2 Return chasing: do equity flows follow Nifty 50 returns? ==========
+
+Call:
+lm(formula = equity_net_flow ~ nifty_return_pct + nifty_return_lag1, 
+    data = d)
+
+Residuals:
+   Min     1Q Median     3Q    Max 
+-12501  -4559  -1188   5089  14768 
+
+Coefficients:
+                  Estimate Std. Error t value Pr(>|t|)    
+(Intercept)        30468.4     1245.5  24.463   <2e-16 ***
+nifty_return_pct    -733.0      303.0  -2.419   0.0212 *  
+nifty_return_lag1   -568.3      314.7  -1.806   0.0800 .  
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 7292 on 33 degrees of freedom
+Multiple R-squared:  0.204,	Adjusted R-squared:  0.1557 
+F-statistic: 4.228 on 2 and 33 DF,  p-value: 0.02319
+
+
+
+========== 3.3 Flight to safety: do gold ETF flows rise when equities fall? ==========
+
+Call:
+lm(formula = gold_etf_net_flow ~ nifty_return_pct, data = d)
+
+Residuals:
+    Min      1Q  Median      3Q     Max 
+-4010.7 -2224.5 -1229.4   427.2 20510.2 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)        2911.0      748.5   3.889 0.000445 ***
+nifty_return_pct   -199.9      184.7  -1.082 0.286925    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 4460 on 34 degrees of freedom
+Multiple R-squared:  0.03328,	Adjusted R-squared:  0.004846 
+F-statistic:  1.17 on 1 and 34 DF,  p-value: 0.2869
+
+
+
+========== 3.4 SIP vs lump-sum: which is more stable, and which reacts to the market? ==========
+CV of SIP contributions:        0.186 
+CV of lump-sum equity inflows:  0.234 
+
+Call:
+lm(formula = sip_contribution ~ month_number + nifty_return_pct, 
+    data = d)
+
+Residuals:
+     Min       1Q   Median       3Q      Max 
+-1798.78  -848.80    73.35   854.67  1760.90 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)      17910.87     359.62  49.805   <2e-16 ***
+month_number       442.78      16.84  26.293   <2e-16 ***
+nifty_return_pct   -72.22      43.48  -1.661    0.106    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 1010 on 33 degrees of freedom
+Multiple R-squared:  0.9592,	Adjusted R-squared:  0.9567 
+F-statistic: 387.7 on 2 and 33 DF,  p-value: < 2.2e-16
+
+
+Call:
+lm(formula = lump_sum_equity_inflow ~ month_number + nifty_return_pct, 
+    data = d)
+
+Residuals:
+   Min     1Q Median     3Q    Max 
+-15483  -5646  -1585   4909  23406 
+
+Coefficients:
+                 Estimate Std. Error t value Pr(>|t|)    
+(Intercept)       39438.0     3224.7  12.230 8.35e-14 ***
+month_number        -62.3      151.0  -0.413    0.683    
+nifty_return_pct   -365.4      389.9  -0.937    0.355    
+---
+Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+Residual standard error: 9056 on 33 degrees of freedom
+Multiple R-squared:  0.0267,	Adjusted R-squared:  -0.03229 
+F-statistic: 0.4526 on 2 and 33 DF,  p-value: 0.6398
+
+
+
+========== 4. OLS by matrix algebra vs lm() ==========
+X has 36 rows and 3 columns
+                  beta_by_hand    beta_lm se_by_hand     se_lm p_by_hand
+(Intercept)         30468.3564 30468.3564  1245.4903 1245.4903 1.001e-22
+nifty_return_pct     -732.9972  -732.9972   303.0382  303.0382 2.125e-02
+nifty_return_lag1    -568.2873  -568.2873   314.6530  314.6530 8.003e-02
+                       p_lm
+(Intercept)       1.001e-22
+nifty_return_pct  2.125e-02
+nifty_return_lag1 8.003e-02
+R-squared by hand: 0.204   lm(): 0.204 
+Coefficients match lm(): TRUE 
+
+
+========== 5.1 Seasonal decomposition ==========
+   month equity_seasonal debt_seasonal
+1    Oct             433        152491
+2    Nov             -90        -10877
+3    Dec            2076       -131334
+4    Jan            -170         98808
+5    Feb           -3943         14554
+6    Mar            1287       -249507
+7    Apr           -8899        193724
+8    May           -4035           397
+9    Jun             678        -65710
+10   Jul            8211        103238
+11   Aug            4109          9125
+12   Sep             342       -114909
+
+Debt: sd of seasonal part = 123742  vs sd of whole series = 130228 
+Quarter-end months (Mar, Jun, Sep, Dec) average debt seasonal effect: -140365 Rs cr
+Other months average debt seasonal effect: 70182 Rs cr
+
+
+========== 5.2 Autocorrelation ==========
+Lag-1 autocorrelation, equity flows: 0.539 
+
+	Box-Ljung test
+
+data:  equity_ts
+X-squared = 13.413, df = 6, p-value = 0.03693
+
+
+	Box-Ljung test
+
+data:  residuals(m_chase)
+X-squared = 12.492, df = 6, p-value = 0.05186
+

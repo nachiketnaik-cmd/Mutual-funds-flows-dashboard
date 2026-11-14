@@ -1,0 +1,55 @@
+// =============================================================================
+// Power BI DAX measures for the Mutual Funds Flows Dashboard
+// Paste each block into Modeling -> New measure (or New table for the Date table).
+// Table names assume the CSV files were loaded with their default names:
+//   category_flows, analysis_dataset
+// =============================================================================
+
+// ---- Date table (Modeling -> New table) -------------------------------------
+// One row per month, so all visuals share the same month axis.
+Date =
+ADDCOLUMNS (
+    CALENDAR ( DATE ( 2023, 10, 1 ), DATE ( 2026, 9, 30 ) ),
+    "Year", YEAR ( [Date] ),
+    "Month", FORMAT ( [Date], "MMM" ),
+    "Month Number", MONTH ( [Date] ),
+    "Year-Month", FORMAT ( [Date], "YYYY-MM" )
+)
+
+// ---- Flow measures (only the 8 broad categories, to avoid double counting) --
+Net Flow (Rs cr) =
+CALCULATE ( SUM ( category_flows[net_flow_cr] ), category_flows[level] = "Broad" )
+
+Gross Inflow (Rs cr) =
+CALCULATE ( SUM ( category_flows[inflow_cr] ), category_flows[level] = "Broad" )
+
+Gross Outflow (Rs cr) =
+CALCULATE ( SUM ( category_flows[outflow_cr] ), category_flows[level] = "Broad" )
+
+// Share of all net inflows that went into the selected category(ies)
+Share of Net Flow % =
+DIVIDE (
+    [Net Flow (Rs cr)],
+    CALCULATE ( [Net Flow (Rs cr)], ALL ( category_flows[category] ) )
+)
+
+// ---- AUM: a stock, not a flow, so take the LAST month instead of summing ----
+AUM Latest (Rs cr) =
+CALCULATE (
+    SUM ( category_flows[aum_cr] ),
+    category_flows[level] = "Broad",
+    LASTDATE ( category_flows[month] )
+)
+
+// ---- SIP and market ---------------------------------------------------------
+SIP Contribution (Rs cr) = SUM ( analysis_dataset[sip_contribution] )
+
+Lump-sum Equity Inflow (Rs cr) = SUM ( analysis_dataset[lump_sum_equity_inflow] )
+
+Nifty Return % = AVERAGE ( analysis_dataset[nifty_return_pct] ) / 100
+
+// Number of months in the selection with a positive net flow
+Positive Flow Months =
+COUNTROWS (
+    FILTER ( VALUES ( category_flows[month] ), [Net Flow (Rs cr)] > 0 )
+)
