@@ -121,6 +121,18 @@ Multiple R-squared:  0.204,	Adjusted R-squared:  0.1557
 F-statistic: 4.228 on 2 and 33 DF,  p-value: 0.02319
 
 
+--- Robustness 1: controlling for last month's equity flow ---
+                    Estimate Std. Error t value Pr(>|t|)
+(Intercept)       16430.2759  4454.0508  3.6888   0.0009
+nifty_return_pct   -659.4333   263.3779 -2.5038   0.0178
+nifty_return_lag1  -229.3737   284.0317 -0.8076   0.4255
+equity_flow_lag1      0.4783     0.1437  3.3287   0.0023
+R-squared: 0.435 
+
+--- Robustness 2: leave one month out ---
+Same-month slope ranges from -902 to -620 (always negative: TRUE )
+p-value ranges from 0.005 to 0.06 ; largest when Mar 26 is left out
+
 
 ========== 3.3 Flight to safety: do gold ETF flows rise when equities fall? ==========
 
@@ -238,4 +250,10 @@ X-squared = 13.413, df = 6, p-value = 0.03693
 
 data:  residuals(m_chase)
 X-squared = 12.492, df = 6, p-value = 0.05186
+
+
+	Box-Ljung test
+
+data:  residuals(m_chase_lag)
+X-squared = 2.2572, df = 6, p-value = 0.8946
 

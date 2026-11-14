@@ -1,0 +1,10 @@
+"category","month_type","months","avg_net_flow_cr"
+"Debt","1. Quarter-end month",12,-137347
+"Debt","2. Month after quarter-end",12,142530
+"Debt","3. Other months",12,3367
+"Equity","1. Quarter-end month",12,30891
+"Equity","2. Month after quarter-end",12,29848
+"Equity","3. Other months",12,28430
+"Liquid Fund","1. Quarter-end month",12,-80150
+"Liquid Fund","2. Month after quarter-end",12,82745
+"Liquid Fund","3. Other months",12,8949

@@ -57,6 +57,19 @@ read_amfi_report <- function(file) {
   sheet <- as.data.frame(read_excel(file, sheet = 1, col_names = FALSE,
                                     .name_repair = "minimal"))
 
+  # Month from the file name: "amoct2023repo.xlsx" -> "oct" and "2023"
+  name      <- basename(file)
+  month_num <- match(substr(name, 3, 5), tolower(month.abb))
+  year      <- as.numeric(substr(name, 6, 9))
+
+  # Check the file really is the month its name says. The first cell holds a
+  # title like "Monthly Report for the month of October 2023". If AMFI ever
+  # served the wrong month under a file name, this stops the script.
+  title <- as.character(sheet[1, 1])
+  if (!grepl(month.name[month_num], title, ignore.case = TRUE) || !grepl(year, title)) {
+    stop("File ", name, " has the title '", title, "', which is a different month")
+  }
+
   # Clean the category labels so they can be matched exactly:
   #   "Sub Total - I (i+ii+iii+...)"  ->  "SUB TOTAL - I"
   # sub() removes everything from the first "(" onwards, trimws() removes
@@ -105,11 +118,6 @@ read_amfi_report <- function(file) {
     get_row("TOTAL A-OPEN ENDED SCHEMES")
   )
 
-  # Month from the file name: "amoct2023repo.xlsx" -> "oct" and "2023"
-  name      <- basename(file)
-  month_num <- match(substr(name, 3, 5), tolower(month.abb))
-  year      <- as.numeric(substr(name, 6, 9))
-
   data.frame(
     month       = as.Date(paste(year, month_num, 1, sep = "-")),
     category    = c("Debt", "Equity", "Hybrid", "Solution Oriented", "Index Funds",
@@ -140,12 +148,14 @@ stopifnot(!any(is.na(flows[, c("inflow_cr", "outflow_cr", "net_flow_cr", "aum_cr
 stopifnot(all(abs(flows$inflow_cr - flows$outflow_cr - flows$net_flow_cr) < 1))
 
 # 4. The 8 broad categories should add up to AMFI's own "Total Open-ended"
-#    figure every month. If our mapping missed or double-counted a section,
-#    this check would fail.
+#    figure every month, for all four numbers. If our mapping missed or
+#    double-counted a section, this check would fail.
 broad <- flows[flows$level == "Broad", ]
 total <- flows[flows$level == "Total", ]
-broad_sum <- tapply(broad$net_flow_cr, broad$month, sum)   # sum per month
-stopifnot(all(abs(broad_sum - total$net_flow_cr) < 1))
+for (column in c("inflow_cr", "outflow_cr", "net_flow_cr", "aum_cr")) {
+  broad_sum <- tapply(broad[[column]], broad$month, sum)   # sum per month
+  stopifnot(all(abs(broad_sum - total[[column]]) < 1))
+}
 cat("Part A OK: categories add up to the AMFI total in all 36 months\n")
 
 write.csv(flows, file.path(clean_folder, "category_flows.csv"), row.names = FALSE)
@@ -162,6 +172,11 @@ write.csv(flows, file.path(clean_folder, "category_flows.csv"), row.names = FALS
 page <- read_html(file.path(raw_folder, "amfi_sip_page.html"))
 sip_table <- xml_find_all(page, "//table")[[1]]   # first table = SIP contribution
 rows <- xml_find_all(sip_table, ".//tr")           # all table rows
+
+# Check we picked the right table: its first header row should say
+# "SIP Contribution". If AMFI redesigns the page, this stops the script
+# instead of silently reading some other table.
+stopifnot(grepl("SIP Contribution", xml_text(rows[[1]])))
 
 # Row 2 holds the financial-year headers: "FY 2026-27", "FY 2025-26", ...
 fy_labels   <- xml_text(xml_find_all(rows[[2]], "./th"))
@@ -199,6 +214,9 @@ write.csv(sip, file.path(clean_folder, "sip_monthly.csv"), row.names = FALSE)
 # =============================================================================
 nifty_json <- fromJSON(file.path(raw_folder, "nifty50_monthly.json"))
 result     <- nifty_json$chart$result
+
+# Yahoo puts a message in "error" when a request fails; it is empty when all is well.
+stopifnot(is.null(nifty_json$chart$error))
 
 # Yahoo gives each month's start time (Unix seconds) and the month-end close.
 timestamps <- result$timestamp[[1]]

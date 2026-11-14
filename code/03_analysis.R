@@ -8,7 +8,7 @@
 #   Section 4. OLS by matrix algebra  (re-do one regression by hand: (X'X)^-1 X'y)
 #   Section 5. Time-series analysis   (decompose(), acf(), Box.test())
 #
-# Inputs : data/clean/analysis_dataset.csv, data/clean/category_flows.csv
+# Input  : data/clean/analysis_dataset.csv
 # Outputs: outputs/figures/*.png, outputs/tables/*.csv, outputs/analysis_output.txt
 #
 # Only base R is used (the "stats" and "graphics" packages come with R).
@@ -20,13 +20,79 @@ dir.create("outputs/tables",  recursive = TRUE, showWarnings = FALSE)
 
 # sink() copies everything printed to the console into a text file as well
 # (split = TRUE), so the full results are saved and can be read on GitHub.
+# If the script ever stops with an error, type sink() in the console once to
+# switch this off again.
 sink("outputs/analysis_output.txt", split = TRUE)
 
-d     <- read.csv("data/clean/analysis_dataset.csv")
-flows <- read.csv("data/clean/category_flows.csv")
-d$month     <- as.Date(d$month)
-flows$month <- as.Date(flows$month)
+d <- read.csv("data/clean/analysis_dataset.csv")
+d$month <- as.Date(d$month)
 n <- nrow(d)   # 36 months
+
+# -----------------------------------------------------------------------------
+# Chart style, shared by every figure so they all look like one set.
+# -----------------------------------------------------------------------------
+col_blue   <- "#2a78d6"   # main colour for data
+col_orange <- "#eb6834"   # second series / fitted lines / highlights
+col_red    <- "#e34948"   # negative values
+col_gray   <- "#b5b4ad"   # de-emphasised data
+col_ink    <- "#0b0b0b"   # titles and value labels
+col_text   <- "#52514e"   # axis text
+col_grid   <- "#e1e0d9"   # gridlines (kept faint so the data stands out)
+col_bg     <- "#fcfcfb"   # background
+
+x_months    <- 1:n                        # x position of each month: 1, 2, ..., 36
+month_label <- format(d$month, "%b %y")   # "Oct 23", "Nov 23", ...
+
+# Open a PNG file in outputs/figures/ and apply the shared style.
+# Sizes are in pixels; res = 150 keeps the text sharp.
+open_png <- function(file_name, width = 1600, height = 900) {
+  png(file.path("outputs/figures", file_name), width = width, height = height, res = 150)
+  par(bg = col_bg, fg = col_text, col.axis = col_text, col.lab = col_text,
+      col.main = col_ink, cex.main = 1.05, cex.axis = 0.8, cex.lab = 0.85,
+      las = 1,                      # axis numbers always horizontal
+      bty = "n",                    # no box around the plot
+      mar = c(4.5, 4.5, 3.5, 1.5),  # margins: bottom, left, top, right
+      mgp = c(2.8, 0.6, 0), tcl = -0.25)
+}
+
+# Save and close the PNG. invisible() hides the "null device" message.
+close_png <- function() invisible(dev.off())
+
+# Faint horizontal gridlines at the y-axis tick marks.
+add_grid <- function() abline(h = axTicks(2), col = col_grid, lwd = 1)
+
+# Month names along the x-axis, written vertically so all 36 fit.
+add_month_axis <- function() {
+  axis(1, at = x_months, labels = month_label, las = 2, cex.axis = 0.6,
+       col = col_grid, col.ticks = col_grid)
+}
+
+# Format a number for a label: 1234.5 -> "1,234" (digits = 0) or "1,234.5" (digits = 1).
+# Adding 0 turns a rounded "-0" into a plain "0".
+fmt <- function(x, digits = 0) {
+  format(round(x, digits) + 0, big.mark = ",", nsmall = digits, trim = TRUE)
+}
+
+# A line chart over the 36 months with EVERY point labelled with its value.
+# Used for equity flows (Fig 2) and for SIP and lump-sum inflows (Fig 7).
+line_with_labels <- function(values, main, ylab, ylim, line_col = col_blue, digits = 1) {
+  plot(x_months, values, type = "n", xaxt = "n", xlab = "",
+       xlim = c(0.5, n + 0.5), xaxs = "i", ylim = ylim, ylab = ylab, main = main)
+  add_grid()
+  lines(x_months, values, col = line_col, lwd = 2)
+  points(x_months, values, pch = 21, bg = line_col, col = col_bg, cex = 1.1)
+
+  # Where to put each label so that it does not sit on the line:
+  # a point higher than the average of its two neighbours is a "peak", so the
+  # line falls away below it and the label goes above (pos = 3); otherwise the
+  # point is a "dip" and the label goes below (pos = 1).
+  month_before  <- c(values[1], values[-n])
+  month_after   <- c(values[-1], values[n])
+  is_peak       <- values >= (month_before + month_after) / 2
+  text(x_months, values, labels = fmt(values, digits),
+       pos = ifelse(is_peak, 3, 1), cex = 0.55, col = col_ink)
+  add_month_axis()
+}
 
 # The 8 broad categories, as column names in the analysis dataset.
 flow_cols <- c(Equity = "equity_net_flow", Debt = "debt_net_flow",
@@ -86,40 +152,93 @@ print(round(cor_matrix, 2))
 write.csv(round(cor_matrix, 3), "outputs/tables/correlation_matrix.csv")
 
 # --- Figures for Section 1 ---------------------------------------------------
-# png() opens an image file, the plot is drawn into it, dev.off() saves it.
+# Every figure follows the same three steps: open_png() opens an image file,
+# the plot is drawn into it, and close_png() saves it.
+# Values are shown in Rs thousand crore (Rs crore / 1000) to keep labels short.
+# text() writes the value labels; its "pos" argument places the label
+# below (1), left (2), above (3) or right (4) of the point.
 
-png("outputs/figures/fig01_total_net_flow_by_category.png", width = 1000, height = 600)
-par(mar = c(5, 11, 4, 2))                    # wider left margin for long labels
-barplot(sort(totals) / 1000, horiz = TRUE, las = 1, col = "steelblue",
-        main = "Total net flow, Oct 2023 - Sep 2026",
-        xlab = "Rs thousand crore")
-abline(v = 0)
-invisible(dev.off())   # invisible() hides the 'null device' message
+# Fig 1. Total net flow per category, largest at the top, with value labels.
+open_png("fig01_total_net_flow_by_category.png")
+par(mar = c(4.5, 8.5, 3.5, 1.5))             # wider left margin for category names
+sorted_totals <- sort(totals) / 1000
+bar_y <- barplot(sorted_totals, horiz = TRUE, col = col_blue, border = NA,
+                 xlim = c(0, max(sorted_totals) * 1.22),   # room for the labels
+                 main = "Total net flow by category, Oct 2023 to Sep 2026",
+                 xlab = "Rs thousand crore", cex.names = 0.85)
+# barplot() returns the position of each bar, which tells text() where to write.
+text(sorted_totals, bar_y, pos = 4, col = col_ink, cex = 0.8,
+     labels = paste0(fmt(sorted_totals, 1), "  (",
+                     fmt(100 * sorted_totals / sum(sorted_totals), 1), "%)"))
+close_png()
 
-png("outputs/figures/fig02_equity_flows_and_nifty.png", width = 1000, height = 700)
-par(mfrow = c(2, 1), mar = c(4, 5, 3, 2))    # 2 plots stacked vertically
-plot(d$month, d$equity_net_flow / 1000, type = "b", pch = 19, col = "darkgreen",
-     main = "Equity fund net flows", xlab = "", ylab = "Rs thousand crore")
-barplot(d$nifty_return_pct, names.arg = format(d$month, "%b %y"), las = 2,
-        col = ifelse(d$nifty_return_pct >= 0, "darkgreen", "firebrick"),
-        main = "Nifty 50 monthly return (%)", cex.names = 0.7)
-invisible(dev.off())   # invisible() hides the 'null device' message
+# Fig 2. Equity net flows (top) and Nifty 50 returns (bottom), month by month.
+# Both panels use the same x positions, so each month lines up vertically.
+open_png("fig02_equity_flows_and_nifty.png", height = 1250)
+par(mfrow = c(2, 1), mar = c(4, 4.5, 3.5, 1))   # 2 plots stacked vertically
 
-png("outputs/figures/fig03_boxplot_flows.png", width = 1000, height = 600)
-par(mar = c(9, 5, 4, 2))
+equity_k <- d$equity_net_flow / 1000
+line_with_labels(equity_k, main = "Equity fund net flows",
+                 ylab = "Rs thousand crore", ylim = c(10, 48))
+
+nifty <- d$nifty_return_pct
+plot(x_months, nifty, type = "n", xaxt = "n", xlab = "",
+     xlim = c(0.5, n + 0.5), xaxs = "i", ylim = c(-13.5, 10),
+     ylab = "Return (%)", main = "Nifty 50 monthly return (blue = up, red = down)")
+add_grid()
+# rect() draws one bar per month from 0 to the return.
+rect(x_months - 0.35, 0, x_months + 0.35, nifty, border = NA,
+     col = ifelse(nifty >= 0, col_blue, col_red))
+abline(h = 0, col = col_text)
+# Labels go above positive bars (pos = 3) and below negative bars (pos = 1).
+text(x_months, nifty, labels = fmt(nifty, 1),
+     pos = ifelse(nifty >= 0, 3, 1), cex = 0.55, col = col_ink)
+add_month_axis()
+close_png()
+
+# Fig 3. Box plot: the spread of monthly net flows in each category.
 # Debt is left out: its swings are 10x bigger and would squash the other boxes.
-boxplot(d[, flow_cols[names(flow_cols) != "Debt"]] / 1000,
-        names = names(flow_cols)[names(flow_cols) != "Debt"], las = 2,
-        col = "lightblue", ylab = "Rs thousand crore",
-        main = "Spread of monthly net flows (Debt excluded, see Section 5)")
-abline(h = 0, lty = 2)
-invisible(dev.off())   # invisible() hides the 'null device' message
+# rev() reverses the order so Equity is drawn at the top.
+box_cols  <- rev(flow_cols[names(flow_cols) != "Debt"])
+box_data  <- d[, box_cols] / 1000
+open_png("fig03_boxplot_flows.png")
+par(mar = c(4.5, 8.5, 3.5, 1.5))
+box <- boxplot(box_data, horizontal = TRUE, yaxt = "n",
+               col = "#cde2fb", border = col_text, boxwex = 0.5,
+               whisklty = 1, staplewex = 0.3,              # solid whiskers
+               outpch = 21, outbg = col_orange, outcol = col_bg, outcex = 1.1,
+               ylim = c(-20, 58),                          # extra room on the right
+               xlab = "Monthly net flow, Rs thousand crore",
+               main = "Spread of monthly net flows (Debt excluded, see Section 5)")
+axis(2, at = seq_along(box_cols), labels = names(box_cols), tick = FALSE, cex.axis = 0.85)
+abline(v = 0, col = col_text)
+# Write each category's median (the thick line inside the box) in a column
+# on the right, where it cannot collide with anything.
+medians <- box$stats[3, ]
+text(58, seq_along(medians), pos = 2, cex = 0.7, col = col_ink,
+     labels = paste("median", fmt(medians, 1)))
+# Label each outlier (orange dot) with its month, so we know which month it was.
+# box$out holds the outlier values and box$group says which box each belongs to.
+# Labels alternate below / above so two outliers next to each other stay readable.
+for (i in seq_along(box$out)) {
+  category_values <- box_data[[box$group[i]]]
+  outlier_month   <- month_label[which(category_values == box$out[i])]
+  text(box$out[i], box$group[i], labels = outlier_month,
+       pos = ifelse(i %% 2 == 0, 3, 1), cex = 0.55, col = col_ink)
+}
+close_png()
 
-png("outputs/figures/fig04_hist_equity_flows.png", width = 800, height = 600)
-hist(d$equity_net_flow / 1000, breaks = 10, col = "darkseagreen",
+# Fig 4. Histogram of equity net flows, with the number of months on each bar.
+open_png("fig04_hist_equity_flows.png", width = 1300)
+h <- hist(equity_k, breaks = 10, plot = FALSE)   # compute the bins first
+plot(h, col = col_blue, border = col_bg, ylim = c(0, max(h$counts) + 1.5),
      main = "Distribution of monthly equity net flows",
-     xlab = "Rs thousand crore")
-invisible(dev.off())   # invisible() hides the 'null device' message
+     xlab = "Monthly net flow, Rs thousand crore", ylab = "Number of months")
+text(h$mids, h$counts, labels = h$counts, pos = 3, cex = 0.8, col = col_ink)
+abline(v = mean(equity_k), col = col_orange, lwd = 2)
+text(mean(equity_k), max(h$counts) + 1.2, pos = 4, cex = 0.75, col = col_ink,
+     labels = paste("mean =", fmt(mean(equity_k), 1)))
+close_png()
 
 
 # =============================================================================
@@ -245,6 +364,38 @@ regression_results <- rbind(regression_results, tidy_lm(m_chase, "Return chasing
 # Positive slope = investors buy more after the market rises (return chasing).
 # Negative slope = investors buy more after the market falls ("buy the dip").
 
+# Robustness check 1: add last month's equity flow as a control.
+# Flows are "sticky" (a strong month tends to follow a strong month, see
+# Section 5.2), which breaks the OLS assumption that residuals are independent.
+# Including last month's flow soaks up that stickiness. If the Nifty slope
+# stays negative and significant, the result is not an artefact of it.
+# The first month has no "last month", so it is NA and lm() drops that row.
+d$equity_flow_lag1 <- c(NA, d$equity_net_flow[-n])
+m_chase_lag <- lm(equity_net_flow ~ nifty_return_pct + nifty_return_lag1 + equity_flow_lag1,
+                  data = d)
+cat("\n--- Robustness 1: controlling for last month's equity flow ---\n")
+print(round(summary(m_chase_lag)$coefficients, 4))
+cat("R-squared:", round(summary(m_chase_lag)$r.squared, 3), "\n")
+regression_results <- rbind(regression_results,
+                            tidy_lm(m_chase_lag, "Return chasing + lagged flow"))
+
+# Robustness check 2: does one unusual month drive the result?
+# Re-run the regression 36 times, each time leaving one month out, and look
+# at how much the same-month slope and its p-value move.
+loo_slope <- numeric(n)
+loo_p     <- numeric(n)
+for (i in 1:n) {
+  s <- summary(lm(equity_net_flow ~ nifty_return_pct + nifty_return_lag1,
+                  data = d[-i, ]))$coefficients
+  loo_slope[i] <- s["nifty_return_pct", 1]
+  loo_p[i]     <- s["nifty_return_pct", 4]
+}
+cat("\n--- Robustness 2: leave one month out ---\n")
+cat("Same-month slope ranges from", round(min(loo_slope)), "to", round(max(loo_slope)),
+    "(always negative:", all(loo_slope < 0), ")\n")
+cat("p-value ranges from", round(min(loo_p), 3), "to", round(max(loo_p), 3),
+    "; largest when", month_label[which.max(loo_p)], "is left out\n")
+
 heading("3.3 Flight to safety: do gold ETF flows rise when equities fall?")
 m_gold <- lm(gold_etf_net_flow ~ nifty_return_pct, data = d)
 print(summary(m_gold))
@@ -271,34 +422,88 @@ regression_results <- rbind(regression_results,
 write.csv(regression_results, "outputs/tables/regression_results.csv", row.names = FALSE)
 
 # --- Figures for Section 3 ---------------------------------------------------
-png("outputs/figures/fig05_return_chasing_scatter.png", width = 800, height = 600)
-plot(d$nifty_return_lag1, d$equity_net_flow / 1000, pch = 19, col = "darkgreen",
-     xlab = "Nifty 50 return LAST month (%)", ylab = "Equity net flow (Rs thousand crore)",
-     main = "Return chasing: equity flows vs last month's Nifty return")
-abline(lm(I(equity_net_flow / 1000) ~ nifty_return_lag1, data = d), col = "red", lwd = 2)
-invisible(dev.off())   # invisible() hides the 'null device' message
 
-png("outputs/figures/fig06_gold_vs_nifty_scatter.png", width = 800, height = 600)
-plot(d$nifty_return_pct, d$gold_etf_net_flow / 1000, pch = 19, col = "goldenrod",
-     xlab = "Nifty 50 return (%)", ylab = "Gold ETF net flow (Rs thousand crore)",
-     main = "Flight to safety: gold ETF flows vs Nifty return")
-abline(m_gold$coefficients / c(1000, 1000), col = "red", lwd = 2)
-invisible(dev.off())   # invisible() hides the 'null device' message
+# Helper for Figs 5 and 6: a scatter plot where every point is labelled with
+# its month, plus the fitted straight line and its slope and p-value.
+# x is a return in %, y is a flow in Rs thousand crore.
+scatter_with_labels <- function(x, y, xlab, ylab, main) {
+  fit   <- lm(y ~ x)
+  slope <- summary(fit)$coefficients[2, 1]
+  p     <- summary(fit)$coefficients[2, 4]
 
-png("outputs/figures/fig07_sip_vs_lumpsum.png", width = 1000, height = 600)
-plot(d$month, d$lump_sum_equity_inflow / 1000, type = "l", lwd = 2, col = "firebrick",
-     ylim = c(0, max(d$lump_sum_equity_inflow) / 1000),
-     xlab = "", ylab = "Rs thousand crore", main = "SIP vs lump-sum equity inflows")
-lines(d$month, d$sip_contribution / 1000, lwd = 2, col = "navy")
-legend("topleft", legend = c("Lump-sum (approx.)", "SIP"),
-       col = c("firebrick", "navy"), lwd = 2)
-invisible(dev.off())   # invisible() hides the 'null device' message
+  plot(x, y, type = "n", xlab = xlab, ylab = ylab, main = main)
+  add_grid()
+  abline(fit, col = col_orange, lwd = 2)
+  points(x, y, pch = 21, bg = col_blue, col = col_bg, cex = 1.2)
 
-# Residual checks: plot(model) draws 4 standard diagnostic plots.
-png("outputs/figures/fig08_residuals_return_chasing.png", width = 1000, height = 800)
-par(mfrow = c(2, 2))
-plot(m_chase)
-invisible(dev.off())   # invisible() hides the 'null device' message
+  # Where to put each label so that close points do not write over each other:
+  # find each point's nearest neighbour and put the label on the side facing
+  # AWAY from it (neighbour above -> label below, neighbour below -> label above).
+  # x and y are first rescaled to run from 0 to 1, otherwise "distance" would
+  # mix % and Rs thousand crore.
+  x_scaled  <- (x - min(x)) / (max(x) - min(x))
+  y_scaled  <- (y - min(y)) / (max(y) - min(y))
+  label_pos <- numeric(length(x))
+  for (i in seq_along(x)) {
+    distance    <- sqrt((x_scaled - x_scaled[i])^2 + (y_scaled - y_scaled[i])^2)
+    distance[i] <- Inf                       # a point is not its own neighbour
+    nearest     <- which.min(distance)
+    label_pos[i] <- ifelse(y[nearest] > y[i], 1, 3)
+  }
+  text(x, y, labels = month_label, pos = label_pos,
+       cex = 0.55, col = col_text, offset = 0.4)
+
+  # The slope is in thousand crore per 1% return; x 1000 turns it into Rs crore.
+  # mtext() writes in the margin, here just under the title.
+  mtext(paste0("Fitted line: ", fmt(slope * 1000), " Rs crore per +1% return (p = ",
+               sprintf("%.3f", p), ")"),
+        side = 3, line = 0.2, cex = 0.7, col = col_ink)
+}
+
+# Fig 5. Return chasing: equity flows against this month's and last month's return.
+# (Each panel is a simple one-variable fit, so the slopes differ slightly from
+# the two-variable regression in 3.2.)
+open_png("fig05_return_chasing_scatter.png", height = 1900)
+par(mfrow = c(2, 1), mar = c(4.5, 4.5, 4, 1))   # stacked, so each panel is wide
+scatter_with_labels(d$nifty_return_pct, equity_k,
+                    xlab = "Nifty 50 return THIS month (%)",
+                    ylab = "Equity net flow, Rs thousand crore",
+                    main = "Equity flows vs same-month return")
+scatter_with_labels(d$nifty_return_lag1, equity_k,
+                    xlab = "Nifty 50 return LAST month (%)",
+                    ylab = "Equity net flow, Rs thousand crore",
+                    main = "Equity flows vs last month's return")
+close_png()
+
+# Fig 6. Flight to safety: gold ETF flows against the Nifty return.
+open_png("fig06_gold_vs_nifty_scatter.png", height = 1100)
+par(mar = c(4.5, 4.5, 4, 1))
+scatter_with_labels(d$nifty_return_pct, d$gold_etf_net_flow / 1000,
+                    xlab = "Nifty 50 return (%)",
+                    ylab = "Gold ETF net flow, Rs thousand crore",
+                    main = "Flight to safety? Gold ETF flows vs Nifty return")
+close_png()
+
+# Fig 7. SIP vs lump-sum equity inflows, every month labelled.
+# Two panels with the SAME y-axis (0 to 68), so the heights can be compared
+# directly: lump-sum money jumps around, SIP money climbs in a steady line.
+sip_k  <- d$sip_contribution / 1000
+lump_k <- d$lump_sum_equity_inflow / 1000
+open_png("fig07_sip_vs_lumpsum.png", height = 1250)
+par(mfrow = c(2, 1), mar = c(4, 4.5, 3.5, 1))
+line_with_labels(lump_k, main = "Lump-sum equity inflows (approx.): volatile",
+                 ylab = "Rs thousand crore", ylim = c(0, 68), line_col = col_orange)
+line_with_labels(sip_k, main = "SIP contributions (same scale): steady growth",
+                 ylab = "Rs thousand crore", ylim = c(0, 68), line_col = col_blue)
+close_png()
+
+# Fig 8. Residual checks: plot(model) draws 4 standard diagnostic plots.
+# labels.id makes R mark the most unusual months by name instead of row number.
+open_png("fig08_residuals_return_chasing.png", height = 1300)
+par(mfrow = c(2, 2), mar = c(4.5, 4.5, 3, 1.5), las = 0, bty = "o")
+plot(m_chase, labels.id = month_label, pch = 21, bg = col_blue, col = col_bg,
+     cex.id = 0.7)
+close_png()
 
 
 # =============================================================================
@@ -393,12 +598,73 @@ cat("Quarter-end months (Mar, Jun, Sep, Dec) average debt seasonal effect:",
 cat("Other months average debt seasonal effect:",
     round(mean(debt_dec$figure[!month_labels %in% c("Mar", "Jun", "Sep", "Dec")])), "Rs cr\n")
 
-png("outputs/figures/fig09_decompose_equity.png", width = 1000, height = 800)
-plot(equity_dec)
-invisible(dev.off())   # invisible() hides the 'null device' message
-png("outputs/figures/fig10_decompose_debt.png", width = 1000, height = 800)
-plot(debt_dec)
-invisible(dev.off())   # invisible() hides the 'null device' message
+# Helper for Figs 9 and 10: draw the four parts of a decomposition as four
+# stacked panels. plot(decompose(...)) does this too, but writes the axis in
+# scientific notation ("2e+05"); here we use Rs thousand crore and month names.
+plot_decomposition <- function(dec, title) {
+  parts <- list("Observed"                 = dec$x,
+                "Trend (12-month average)" = dec$trend,
+                "Seasonal (repeats yearly)" = dec$seasonal,
+                "Random (what is left)"     = dec$random)
+  par(mfrow = c(4, 1), mar = c(0.6, 5, 2.2, 1), oma = c(4, 0, 2.5, 0))
+  for (i in 1:4) {
+    values <- as.numeric(parts[[i]]) / 1000
+    # Widen the y-axis by a quarter of the data's range on each side, so the
+    # labels of the highest and lowest points fit inside the panel.
+    # (na.rm = TRUE because the trend and random parts start and end with NA:
+    # a 12-month average cannot be computed for the first and last 6 months.)
+    lowest  <- min(values, na.rm = TRUE)
+    highest <- max(values, na.rm = TRUE)
+    padding <- 0.25 * (highest - lowest)
+    plot(x_months, values, type = "n", xaxt = "n", xlab = "", ylab = "Rs '000 cr",
+         xlim = c(0.5, n + 0.5), xaxs = "i",
+         ylim = c(lowest - padding, highest + padding))
+    add_grid()
+    abline(h = 0, col = col_text)
+    lines(x_months, values, col = col_blue, lwd = 2)
+    points(x_months, values, pch = 21, bg = col_blue, col = col_bg, cex = 0.9)
+    # Label the highest and the lowest month in each panel.
+    hi <- which.max(values)
+    lo <- which.min(values)
+    text(hi, values[hi], pos = 3, cex = 0.75, col = col_ink,
+         labels = paste0(month_label[hi], ": ", fmt(values[hi], 1)))
+    text(lo, values[lo], pos = 1, cex = 0.75, col = col_ink,
+         labels = paste0(month_label[lo], ": ", fmt(values[lo], 1)))
+    mtext(names(parts)[i], side = 3, line = 0.4, adj = 0, cex = 0.75, font = 2, col = col_ink)
+  }
+  add_month_axis()                                    # month names under the last panel only
+  mtext(title, outer = TRUE, side = 3, line = 0.8, cex = 1, font = 2, col = col_ink)
+}
+
+open_png("fig09_decompose_equity.png", height = 1500)
+plot_decomposition(equity_dec, "Equity net flows split into trend, seasonal and random parts")
+close_png()
+
+open_png("fig10_decompose_debt.png", height = 1500)
+plot_decomposition(debt_dec, "Debt net flows split into trend, seasonal and random parts")
+close_png()
+
+# Fig 12. The debt seasonal effect for each calendar month, in Jan-Dec order.
+# Quarter-end months are highlighted in orange: this is the advance-tax story.
+calendar_order  <- match(month.abb, month_labels)      # reorder Oct..Sep into Jan..Dec
+debt_seasonal_k <- debt_dec$figure[calendar_order] / 1000
+quarter_end     <- month.abb %in% c("Mar", "Jun", "Sep", "Dec")
+
+open_png("fig12_debt_seasonal_by_month.png")
+plot(1:12, debt_seasonal_k, type = "n", xaxt = "n", xlab = "",
+     xlim = c(0.4, 12.6), xaxs = "i", ylim = c(-300, 250),
+     ylab = "Seasonal effect, Rs thousand crore",
+     main = "Debt funds: money leaves at every quarter-end")
+add_grid()
+rect(1:12 - 0.3, 0, 1:12 + 0.3, debt_seasonal_k, border = NA,
+     col = ifelse(quarter_end, col_orange, col_gray))
+abline(h = 0, col = col_text)
+text(1:12, debt_seasonal_k, labels = fmt(debt_seasonal_k),
+     pos = ifelse(debt_seasonal_k >= 0, 3, 1), cex = 0.8, col = col_ink)
+axis(1, at = 1:12, labels = month.abb, tick = FALSE, cex.axis = 0.85)
+legend("topright", legend = c("Quarter-end month (advance tax due)", "Other months"),
+       fill = c(col_orange, col_gray), border = NA, bty = "n", cex = 0.75, text.col = col_ink)
+close_png()
 
 heading("5.2 Autocorrelation")
 # Autocorrelation: is this month's flow related to last month's flow?
@@ -413,9 +679,31 @@ print(Box.test(equity_ts, lag = 6, type = "Ljung-Box"))
 # in Section 3.2 are too small and the p-values look better than they are.
 print(Box.test(residuals(m_chase), lag = 6, type = "Ljung-Box"))
 
-png("outputs/figures/fig11_acf_equity.png", width = 800, height = 600)
-acf(equity_ts, main = "Autocorrelation of equity net flows")
-invisible(dev.off())   # invisible() hides the 'null device' message
+# The check from Section 3.2, repeated for the model that controls for last
+# month's flow: a large p-value here means the autocorrelation is gone.
+print(Box.test(residuals(m_chase_lag), lag = 6, type = "Ljung-Box"))
+
+# Fig 11. Autocorrelation at lags of 1 to 12 months, each bar labelled.
+# acf(...)$acf starts with lag 0 (always 1), so [-1] drops it.
+acf_values <- acf(d$equity_net_flow, lag.max = 12, plot = FALSE)$acf[-1]
+# Bars outside +/- 1.96 / sqrt(n) are significantly different from zero (5% level).
+band <- 1.96 / sqrt(n)
+
+open_png("fig11_acf_equity.png", width = 1300)
+plot(1:12, acf_values, type = "n", xaxt = "n", xlim = c(0.4, 12.6), xaxs = "i",
+     ylim = c(-0.6, 0.75), xlab = "Lag (months)", ylab = "Autocorrelation",
+     main = "Autocorrelation of equity net flows")
+add_grid()
+rect(1:12 - 0.3, 0, 1:12 + 0.3, acf_values, border = NA,
+     col = ifelse(abs(acf_values) > band, col_blue, col_gray))
+abline(h = 0, col = col_text)
+abline(h = c(-band, band), col = col_orange, lty = 2)
+text(1:12, acf_values, labels = fmt(acf_values, 2),
+     pos = ifelse(acf_values >= 0, 3, 1), cex = 0.75, col = col_ink)
+mtext("Blue bars reach past the dashed lines: significantly different from zero (5% level)",
+      side = 3, line = 0.2, cex = 0.7, col = col_ink)
+axis(1, at = 1:12, tick = FALSE, cex.axis = 0.85)
+close_png()
 
 sink()   # stop copying output to the text file
 cat("\nDone. Results in outputs/analysis_output.txt, figures in outputs/figures/, tables in outputs/tables/\n")
