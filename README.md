@@ -2,9 +2,31 @@
 
 An end-to-end analysis of **Indian mutual fund flows**, built using **R**. It studies how investor money moves across fund categories (equity, debt, hybrid, gold ETFs, index funds and others), and whether those flows react to the stock market.
 
-The core is written in **R**: downloading and scraping the data, cleaning it, and the statistical analysis. R then loads the clean data into a **SQLite** database, where the same questions are answered again in **SQL**. The results are visualised in Power BI and Tableau.
+The core is written in **R**: downloading and scraping the data, cleaning it, and the statistical analysis. R then loads the clean data into a **SQLite** database, where the same questions are answered again in **SQL**. Interactive dashboards in Power BI and Tableau are in progress.
 
 ![Equity flows and Nifty returns](outputs/figures/fig02_equity_flows_and_nifty.png)
+
+## Which tool does what
+
+Every step works on the same tables of monthly fund flows. Each tool does a different job with them:
+
+```
+AMFI website ──► R: download, clean ──► clean CSV files ──┬──► R: statistics (tests, regressions)
+                                                          ├──► SQLite database ──► SQL queries
+                                                          └──► Power BI / Tableau: dashboards
+```
+
+| Tool | What it is | What it does in this project |
+|---|---|---|
+| **R** | A programming language built for statistics | Downloads and scrapes the raw data, cleans it, and runs all the statistics: hypothesis tests, regressions, OLS by matrix algebra, time-series analysis, and the charts in [outputs/figures/](outputs/figures/). This is the main part of the project. |
+| **SQL** (with SQLite) | The standard language for asking questions of data stored in a database. SQLite is a database that lives in a single file, so it needs no server. | R copies the clean tables into `data/mutual_funds.sqlite`. Seven SQL queries then answer summary questions: totals and shares, quarter-end effects, top months, financial-year totals. SQL's totals are checked against R's. |
+| **DAX** (in Power BI) | Power BI's formula language, similar to Excel formulas | Defines reusable numbers for the dashboard, such as net flow counted over the 8 main categories only. The formulas are in [dashboards/powerbi_measures.dax](dashboards/powerbi_measures.dax). |
+| **Power BI** and **Tableau** | Drag-and-drop programs for interactive dashboards | Read the clean CSV files, so the results can be explored by clicking, without code. *In progress.* |
+
+Why the split:
+- **R** does the statistics because tests, regressions and time-series tools are built into it, with output in the format used in academic research.
+- **SQL** shows the same data can be queried the way it is stored in most companies.
+- **Power BI** cannot open a SQLite file without an extra driver, so it reads the same data from the CSV files.
 
 ## Data
 
@@ -107,6 +129,7 @@ code/
   01_download_data.R     download AMFI reports, scrape SIP table, get Nifty 50 prices
   02_clean_data.R        clean and combine into tidy CSV files
   03_analysis.R          descriptive stats, tests, regressions, matrix OLS, time series
+  chart_helpers.R        shared chart style and plotting helpers, used by 03_analysis.R
   04_sql_database.R      build the SQLite database, run the SQL queries, cross-check with R
   queries.sql            the seven SQL queries
 data/
@@ -120,7 +143,7 @@ outputs/
 dashboards/              Power BI / Tableau guide and DAX measures
 ```
 
-## Tools
-- **R** 4.6.1 with RStudio: extraction, cleaning, analysis
-- **SQLite** (through R's `DBI` and `RSQLite`, and DB Browser for SQLite): SQL queries
-- **Power BI Desktop** and **Tableau**: dashboards (see [dashboards/](dashboards/))
+## Software versions
+- **R** 4.6.1 with RStudio
+- **SQLite** through R's `DBI` and `RSQLite` packages; [DB Browser for SQLite](https://sqlitebrowser.org/) to run queries by hand
+- **Power BI Desktop** and **Tableau** (see [dashboards/](dashboards/))
